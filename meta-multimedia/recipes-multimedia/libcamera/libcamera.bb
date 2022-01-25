@@ -10,27 +10,37 @@ LIC_FILES_CHKSUM = "\
 
 SRC_URI = " \
         git://linuxtv.org/libcamera.git;protocol=git \
-        file://0001-uvcvideo-Use-auto-variable-to-avoid-range-loop-warni.patch \
 "
 
-SRCREV = "f490a87fd339fc7443f5d8467ba56a35c750a5f7"
+SRCREV = "61670bb338dd4441b9d9dffdcd8849c2305eb4f3"
 
-PV = "202102+git${SRCPV}"
+PV = "202201+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "python3-pyyaml-native python3-jinja2-native python3-ply-native python3-jinja2-native udev gnutls boost chrpath-native"
+DEPENDS = "python3-pyyaml-native python3-jinja2-native python3-ply-native python3-jinja2-native udev gnutls boost chrpath-native libevent"
 DEPENDS += "${@bb.utils.contains('DISTRO_FEATURES', 'qt', 'qtbase qtbase-native', '', d)}"
 
 PACKAGES =+ "${PN}-gst"
 
-PACKAGECONFIG ??= ""
+PACKAGECONFIG ??= "${@bb.utils.contains('DISTRO_FEATURES', 'qt', 'qt', '', d)}"
 PACKAGECONFIG[gst] = "-Dgstreamer=enabled,-Dgstreamer=disabled,gstreamer1.0 gstreamer1.0-plugins-base"
+PACKAGECONFIG[qt] = "-Dqcam=enabled,-Dqcam=disabled,qtbase qtbase-native"
 
 RDEPENDS_${PN} = "${@bb.utils.contains('DISTRO_FEATURES', 'wayland qt', 'qtwayland', '', d)}"
 
 inherit meson pkgconfig python3native
 
+EXTRA_OEMESON = " \
+    -Dpipelines=raspberrypi,rkisp1,uvcvideo,simple,vimc \
+    -Dipas=raspberrypi,rkisp1,vimc \
+    -Dv4l2=true \
+    -Dcam=enabled \
+    -Dtest=false \
+    -Dlc-compliance=disabled \
+    -Ddocumentation=disabled \
+    --buildtype=release \
+"
 do_install_append() {
     chrpath -d ${D}${libdir}/libcamera.so
 }
@@ -48,6 +58,16 @@ do_recalculate_ipa_signatures_package() {
     ${S}/src/ipa/ipa-sign-install.sh ${B}/src/ipa-priv-key.pem "${modules}"
 }
 
-FILES_${PN}-dev = "${includedir} ${libdir}/pkgconfig"
-FILES_${PN} += " ${libdir}/libcamera.so"
+FILES_${PN}-dev = " \
+    ${includedir} ${libdir}/pkgconfig \
+    ${libdir}/libcamera.so ${libdir}/libcamera-base.so \
+"
+
+FILES_${PN} += " \
+    ${libdir}/libcamera.so.* \
+    ${libdir}/libcamera-base.so.* \
+    ${libdir}/v4l2-compat.so \
+    ${libexecdir}/${BPN}/* \
+    ${bindir}/cam \
+"
 FILES_${PN}-gst = "${libdir}/gstreamer-1.0/libgstlibcamera.so"
